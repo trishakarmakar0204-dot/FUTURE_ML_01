@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Sales Forecasting Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+ 
+        body {
+            background-color: #0a0c10;
+            color: #e8eaf0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 28px 32px;
+        }
+ 
+        /* ── Header ── */
+        .header { margin-bottom: 28px; border-bottom: 1px solid #1e2330; padding-bottom: 16px; }
+        .header h1 { font-size: 22px; color: #ffffff; }
+        .header p  { font-size: 13px; color: #6b7280; margin-top: 4px; }
+ 
+        /* ── KPI Cards ── */
+        .cards-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .card { background: #111318; border: 1px solid #1e2330; border-radius: 12px; padding: 18px; }
+        .card-label    { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+        .card-value    { font-size: 26px; font-weight: bold; margin-bottom: 4px; }
+        .card-sub      { font-size: 11px; color: #4b5563; }
+        .card-mae-note { font-size: 11px; color: #9ca3af; margin-top: 6px; font-style: italic; }
+ 
+        .green  { color: #00e5a0; }
+        .amber  { color: #f5a623; }
+        .purple { color: #818cf8; }
+        .red    { color: #ff4d6d; }
+ 
+        /* ── Section titles ── */
+        .section-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 14px; }
+ 
+        /* ── Model summary ── */
+        .model-summary {
+            background: #111318;
+            border: 1px solid #1e2330;
+            border-left: 3px solid #818cf8;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            font-size: 13px;
+            color: #9ca3af;
+            line-height: 1.8;
+        }
+        .model-summary strong { color: #e8eaf0; }
+ 
+        /* ── Chart ── */
+        .chart-section { margin-bottom: 28px; }
+        .chart-wrap {
+            background: #111318;
+            border: 1px solid #1e2330;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            height: 280px;
+        }
+ 
+        /* ── Forecast table ── */
+        .forecast-section { margin-bottom: 28px; }
+        .table-wrap { overflow-x: auto; }
+        .forecast-table { width: 100%; border-collapse: collapse; min-width: 420px; }
+        .forecast-table thead th {
+            background: #111318;
+            color: #6b7280;
+            font-size: 12px;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #1e2330;
+        }
+        .forecast-table tbody td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid #1e2330;
+        }
+        .forecast-table tbody tr:hover { background: #111318; }
+        .forecast-table tfoot td {
+            padding: 10px 16px;
+            font-size: 11px;
+            color: #4b5563;
+            font-style: italic;
+        }
+ 
+        /* ── Business explanation ── */
+        .explanation {
+            background: #111318;
+            border: 1px solid #1e2330;
+            border-left: 3px solid #00e5a0;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 28px;
+        }
+        .explanation h3 { font-size: 14px; color: #00e5a0; margin-bottom: 10px; }
+        .explanation p  { font-size: 13px; color: #9ca3af; line-height: 1.8; margin-bottom: 8px; }
+        .explanation p:last-child { margin-bottom: 0; }
+ 
+        /* ── Recommendations ── */
+        .recommendations { margin-bottom: 28px; }
+        .rec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+        .rec-card { background: #111318; border: 1px solid #1e2330; border-radius: 12px; padding: 18px; }
+        .rec-icon  { font-size: 20px; margin-bottom: 8px; }
+        .rec-title { font-size: 13px; font-weight: bold; color: #fff; margin-bottom: 6px; }
+        .rec-text  { font-size: 12px; color: #6b7280; line-height: 1.6; }
+ 
+        /* ── Footer ── */
+        .footer {
+            margin-top: 16px;
+            border-top: 1px solid #1e2330;
+            padding-top: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #4b5563;
+        }
+ 
+        @media (max-width: 600px) {
+            body { padding: 16px; }
+            .card-value { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+ 
+<!--
+    ╔══════════════════════════════════════════════╗
+    ║  DATA BLOCK — replace with Python output     ║
+    ║  In Python: import json                      ║
+    ║             print(json.dumps(forecast_data)) ║
+    ║  Then paste that JSON here as FORECAST_DATA  ║
+    ╚══════════════════════════════════════════════╝
+-->
+<script>
+const FORECAST_DATA = {
+    months:    ["Jan 2025","Feb 2025","Mar 2025","Apr 2025","May 2025","Jun 2025"],
+    months_full: ["January 2025","February 2025","March 2025","April 2025","May 2025","June 2025"],
+    forecasted: [27360, 33056, 38752, 24112, 29824, 35520],
+    actual:     [null, null, null, null, null, null],
+    statuses:   ["Growing","Growing","Peak Month","Dip","Recovery","Growing"],
+    status_dir: [1, 1, 1, -1, 1, 1],
+    kpi: {
+        growth_rate: "+20.7%",
+        total_sales: "$77,568",
+        daily_avg:   "$2,586",
+        mae:         10618
+    }
+};
+</script>
+ 
+<!-- Header -->
+<div class="header">
+    <h1>🧠 AI Sales Forecasting Dashboard</h1>
+    <p>Powered by Linear Regression &amp; Scikit-learn &nbsp;|&nbsp; Data: 2022–2024</p>
+</div>
+ 
+<!-- KPI Cards -->
+<div class="cards-row">
+    <div class="card">
+        <p class="card-label">Growth Rate</p>
+        <h2 class="card-value green" id="kpi-growth"></h2>
+        <p class="card-sub">vs previous period</p>
+    </div>
+    <div class="card">
+        <p class="card-label">Total Sales</p>
+        <h2 class="card-value amber" id="kpi-total"></h2>
+        <p class="card-sub">forecast period</p>
+    </div>
+    <div class="card">
+        <p class="card-label">Daily Average</p>
+        <h2 class="card-value purple" id="kpi-avg"></h2>
+        <p class="card-sub">per day</p>
+    </div>
+    <div class="card">
+        <p class="card-label">Model MAE</p>
+        <h2 class="card-value red" id="kpi-mae"></h2>
+        <p class="card-sub">average error</p>
+        <p class="card-mae-note" id="kpi-mae-pct"></p>
+    </div>
+</div>
+ 
+<!-- Model summary -->
+<div class="model-summary">
+    <strong>About this model:</strong> A <strong>Linear Regression</strong> model was trained on sales data from
+    <strong>2022–2024</strong> to forecast the next 6 months. It identifies the underlying trend in historical
+    data and projects it forward. The <strong>Mean Absolute Error (MAE)</strong> of
+    <span id="mae-inline"></span> means predictions are off by roughly that amount on average
+    (<span id="mae-pct-inline"></span> of a typical month's sales) useful context when setting budgets.
+</div>
+ 
+<!-- Forecast Chart -->
+<div class="chart-section">
+    <p class="section-title">📈 6-Month Sales Forecast Chart</p>
+    <div class="chart-wrap">
+        <canvas id="forecastChart"></canvas>
+    </div>
+</div>
+ 
+<!-- Forecast Table -->
+<div class="forecast-section">
+    <p class="section-title">🔮 6-Month Sales Forecast</p>
+    <div class="table-wrap">
+        <table class="forecast-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Forecasted Sales</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="forecast-tbody"></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3">
+                        * Forecasts carry an average error of ±<span id="mae-foot"></span>.
+                        Use these as planning guides, not exact predictions.
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+ 
+<!-- Business Explanation -->
+<div class="explanation">
+    <h3>📖 What does this forecast mean for your business?</h3>
+    <p>
+        Based on sales data from 2022 to 2024, the model predicts total revenue of
+        <strong style="color:#f5a623;" id="exp-total"></strong> over the next six months
+        a <strong style="color:#00e5a0;" id="exp-growth"></strong> growth rate compared to the previous period.
+    </p>
+    <p>
+        <strong style="color:#e8eaf0;">March is the peak month</strong> at $38,752. Inventory should be stocked
+        and extra staff hired before then. April shows a significant dip likely seasonal
+        followed by a recovery through May and June.
+    </p>
+    <p>
+        <strong style="color:#e8eaf0;">How to act on this:</strong> Use March's figure to set maximum stock orders.
+        Trigger promotions in April to cushion the dip. Re-train the model monthly with new actuals
+        to continuously improve accuracy.
+    </p>
+</div>
+ 
+<!-- Recommendations -->
+<div class="recommendations">
+    <p class="section-title">💡 Business Recommendations</p>
+    <div class="rec-grid">
+        <div class="rec-card">
+            <p class="rec-icon">📦</p>
+            <p class="rec-title">Stock Inventory</p>
+            <p class="rec-text">Stock up before March — the peak sales month at $38,752</p>
+        </div>
+        <div class="rec-card">
+            <p class="rec-icon">📣</p>
+            <p class="rec-title">Marketing Budget</p>
+            <p class="rec-text">Increase marketing spend in April to recover from the sales dip</p>
+        </div>
+        <div class="rec-card">
+            <p class="rec-icon">👥</p>
+            <p class="rec-title">Staffing Plan</p>
+            <p class="rec-text">Hire extra staff for March and June peak demand periods</p>
+        </div>
+        <div class="rec-card">
+            <p class="rec-icon">📊</p>
+            <p class="rec-title">Review Monthly</p>
+            <p class="rec-text">Update forecast every month with new data to improve accuracy</p>
+        </div>
+    </div>
+</div>
+ 
+<!-- Footer -->
+<div class="footer">
+    <p>Built by Trisha &nbsp;|&nbsp; Linear Regression Model &nbsp;|&nbsp; Python &amp; Scikit-learn &nbsp;|&nbsp; Data: 2022–2024</p>
+</div>
+ 
+<script>
+(function() {
+    const d = FORECAST_DATA;
+ 
+    // KPI cards
+    document.getElementById('kpi-growth').textContent = d.kpi.growth_rate;
+    document.getElementById('kpi-total').textContent  = d.kpi.total_sales;
+    document.getElementById('kpi-avg').textContent    = d.kpi.daily_avg;
+    document.getElementById('kpi-mae').textContent    = '$' + d.kpi.mae.toLocaleString();
+ 
+    const avgForecast = d.forecasted.reduce((a, b) => a + b, 0) / d.forecasted.length;
+    const maePct = ((d.kpi.mae / avgForecast) * 100).toFixed(1);
+    document.getElementById('kpi-mae-pct').textContent    = '~' + maePct + '% avg monthly error';
+    document.getElementById('mae-inline').textContent     = '$' + d.kpi.mae.toLocaleString();
+    document.getElementById('mae-pct-inline').textContent = maePct + '%';
+    document.getElementById('mae-foot').textContent       = '$' + d.kpi.mae.toLocaleString();
+    document.getElementById('exp-total').textContent      = d.kpi.total_sales;
+    document.getElementById('exp-growth').textContent     = d.kpi.growth_rate;
+ 
+    // Table rows
+    const tbody = document.getElementById('forecast-tbody');
+    d.forecasted.forEach((val, i) => {
+        const isUp = d.status_dir[i] >= 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + d.months_full[i] + '</td>' +
+            '<td class="amber">$' + val.toLocaleString() + '</td>' +
+            '<td style="color:' + (isUp ? '#00e5a0' : '#ff4d6d') + '">' +
+            (isUp ? '&#8593;' : '&#8595;') + ' ' + d.statuses[i] + '</td>';
+        tbody.appendChild(tr);
+    });
+ 
+    // Chart
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    const hasActual = d.actual.some(v => v !== null);
+ 
+    const datasets = [{
+        label: 'Forecasted Sales',
+        data: d.forecasted,
+        backgroundColor: d.forecasted.map((_, i) =>
+            d.status_dir[i] < 0 ? 'rgba(255,77,109,0.7)' : 'rgba(0,229,160,0.65)'
+        ),
+        borderColor: d.forecasted.map((_, i) =>
+            d.status_dir[i] < 0 ? '#ff4d6d' : '#00e5a0'
+        ),
+        borderWidth: 1.5,
+        borderRadius: 6,
+        type: 'bar'
+    }];
+ 
+    if (hasActual) {
+        datasets.push({
+            label: 'Actual Sales',
+            data: d.actual,
+            borderColor: '#818cf8',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointBackgroundColor: '#818cf8',
+            pointRadius: 5,
+            tension: 0.3,
+            type: 'line'
+        });
+    }
+ 
+    new Chart(ctx, {
+        type: 'bar',
+        data: { labels: d.months, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#9ca3af', font: { size: 12 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function(c) { return ' $' + c.parsed.y.toLocaleString(); }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#6b7280', font: { size: 11 } },
+                    grid:  { color: '#1e2330' }
+                },
+                y: {
+                    ticks: {
+                        color: '#6b7280',
+                        font:  { size: 11 },
+                        callback: function(v) { return '$' + (v / 1000).toFixed(0) + 'k'; }
+                    },
+                    grid: { color: '#1e2330' }
+                }
+            }
+        }
+    });
+})();
+</script>
+ 
+</body>
+</html>
+ 
